@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CreateBotData, TrainingWizardData, Bot as BotType } from '@/lib/types/user'
+import Image from 'next/image'
 
 interface BotCreationWizardProps {
   isOpen: boolean
@@ -353,7 +354,13 @@ export function BotCreationWizard({ isOpen, onClose, onBotCreated }: BotCreation
                 {qrCode && connectionStatus === 'waiting' && (
                   <div>
                     <div className="bg-white p-6 rounded-2xl shadow-lg inline-block mb-6">
-                      <img src={qrCode} alt="WhatsApp QR Code" className="w-64 h-64" />
+                      <Image 
+                        src={qrCode} 
+                        alt="WhatsApp QR Code" 
+                        width={256} 
+                        height={256} 
+                        className="w-64 h-64"
+                      />
                     </div>
                     <p className="text-green-600 dark:text-green-300">
                       Scan this QR code with your WhatsApp Business app
