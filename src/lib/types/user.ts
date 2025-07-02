@@ -91,6 +91,9 @@ export interface UserSubscription {
 
 // Legacy interfaces - keeping for backward compatibility during migration
 export interface UserSettings {
+  // User Account Status
+  status?: 'active' | 'banned' | 'inactive'
+
   // WhatsApp Bot Configuration
   whatsappConnected: boolean
   whatsappPhoneNumber?: string
