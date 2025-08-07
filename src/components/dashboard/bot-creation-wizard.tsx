@@ -34,10 +34,7 @@ import Image from 'next/image'
 
 import { QnaTrainingWizard } from './qna-training-wizard'
 
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
 import { BotApiClient } from '@/lib/api/bot-client'
 import { toast } from 'sonner'
 import { useSimpleQRConnection } from '@/hooks/useSimpleQRConnection'
