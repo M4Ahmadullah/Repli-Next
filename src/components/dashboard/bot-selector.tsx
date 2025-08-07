@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { Bot, Plus, Settings, BarChart3, MessageSquare, Zap } from 'lucide-react'
+import { Bot, Plus, Settings, BarChart3, MessageSquare, Zap, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,40 +18,29 @@ import { Bot as BotType } from '@/lib/types/user'
 
 interface BotSelectorProps {
   activeBotId?: string
+  bots: BotType[]
   onBotChange: (botId: string) => void
   onCreateBot: () => void
 }
 
-export function BotSelector({ activeBotId, onBotChange, onCreateBot }: BotSelectorProps) {
+export function BotSelector({ activeBotId, bots, onBotChange, onCreateBot }: BotSelectorProps) {
   const { user } = useUser()
-  const [bots, setBots] = useState<BotType[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
+  // Remove the duplicate API call since bots are passed as props
   useEffect(() => {
-    if (user?.id) {
-      fetchUserBots()
-    }
-  }, [user?.id])
-
-  const fetchUserBots = async () => {
-    try {
-      const response = await fetch('/api/bots')
-      if (response.ok) {
-        const data = await response.json()
-        setBots(data.bots || [])
-      }
-    } catch (error) {
-      console.error('Error fetching bots:', error)
-    } finally {
+    // Only set loading to false when bots are available
+    if (bots.length > 0 || !user?.id) {
       setLoading(false)
     }
-  }
+  }, [bots, user?.id])
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-emerald-500'
       case 'training': return 'bg-yellow-500'
       case 'connecting': return 'bg-blue-500'
+      case 'creating': return 'bg-orange-500'
       case 'inactive': return 'bg-gray-500'
       case 'error': return 'bg-red-500'
       default: return 'bg-gray-500'
@@ -63,10 +52,15 @@ export function BotSelector({ activeBotId, onBotChange, onCreateBot }: BotSelect
       case 'active': return 'Active'
       case 'training': return 'Training'
       case 'connecting': return 'Connecting'
+      case 'creating': return 'Creating'
       case 'inactive': return 'Inactive'
       case 'error': return 'Error'
       default: return 'Unknown'
     }
+  }
+
+  const isIncompleteBot = (bot: BotType) => {
+    return ['creating', 'training', 'connecting'].includes(bot.status)
   }
 
   const activeBot = bots.find(bot => bot.id === activeBotId)
@@ -149,51 +143,98 @@ export function BotSelector({ activeBotId, onBotChange, onCreateBot }: BotSelect
                   Switch Bot
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-80" align="end">
-                <DropdownMenuLabel className="text-green-800 dark:text-green-100">
-                  Your Bots ({bots.length})
-                </DropdownMenuLabel>
+              <DropdownMenuContent className="w-80 p-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Your Bots</h3>
+                    <Button
+                      size="sm"
+                      onClick={onCreateBot}
+                      className="bg-emerald-500 text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      New Bot
+                    </Button>
+                  </div>
+                  
                 <DropdownMenuSeparator />
                 
-                {bots.map((bot) => (
-                  <DropdownMenuItem
+                  {/* Bot List */}
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {bots.map((bot) => {
+                      const isIncomplete = ['creating', 'training', 'connecting'].includes(bot.status)
+                      return (
+                        <div
                     key={bot.id}
+                          className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+                            activeBotId === bot.id
+                              ? 'bg-emerald-100 dark:bg-emerald-800 border border-emerald-300 dark:border-emerald-600'
+                              : ''
+                          } ${isIncomplete ? 'border-l-4 border-l-orange-500' : ''}`}
                     onClick={() => onBotChange(bot.id)}
-                    className={`flex items-center gap-3 p-3 cursor-pointer ${
-                      bot.id === activeBotId ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''
-                    }`}
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-green-500 rounded-lg flex items-center justify-center">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              isIncomplete 
+                                ? 'bg-gradient-to-r from-orange-500 to-yellow-500' 
+                                : 'bg-gradient-to-r from-emerald-500 to-green-500'
+                            }`}>
                         <Bot className="w-4 h-4 text-white" />
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-green-800 dark:text-green-100">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {bot.name}
+                                </h3>
+                                {isIncomplete && (
+                                  <Badge className="bg-orange-500 text-white text-xs">
+                                    Continue Setup
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                {bot.description || 'No description'}
+                              </p>
+                              {isIncomplete && (
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                  Status: {bot.status ? bot.status.charAt(0).toUpperCase() + bot.status.slice(1) : 'Unknown'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {bot.whatsappConnected && (
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                            )}
+                            {activeBotId === bot.id && (
+                              <Check className="w-4 h-4 text-emerald-500" />
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className={`w-1.5 h-1.5 rounded-full ${getStatusColor(bot.status)}`}></div>
-                          <span className="text-xs text-green-600 dark:text-green-400">
-                            {getStatusText(bot.status)}
-                          </span>
+                      )
+                    })}
                         </div>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {bots.length === 0 && (
+                    <div className="text-center py-4">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center mx-auto mb-3">
+                        <Bot className="w-6 h-6 text-gray-400" />
                       </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                        No bots yet. Create your first bot to get started.
+                      </p>
+                      <Button
+                        onClick={onCreateBot}
+                        className="bg-emerald-500 text-white"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create First Bot
+                      </Button>
                     </div>
-                    {bot.id === activeBotId && (
-                      <Badge variant="secondary" className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs">
-                        Active
-                      </Badge>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onCreateBot} className="flex items-center gap-3 p-3 cursor-pointer text-emerald-600 dark:text-emerald-400">
-                  <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
-                    <Plus className="w-4 h-4" />
+                  )}
                   </div>
-                  <span className="font-medium">Create New Bot</span>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -206,21 +247,21 @@ export function BotSelector({ activeBotId, onBotChange, onCreateBot }: BotSelect
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 text-2xl font-bold gradient-text mb-1">
                   <MessageSquare className="w-5 h-5" />
-                  {activeBot.analytics.todayMessages}
+                  {activeBot?.analytics?.todayMessages || 0}
                 </div>
                 <p className="text-sm text-green-600 dark:text-green-400">Today</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 text-2xl font-bold gradient-text mb-1">
                   <BarChart3 className="w-5 h-5" />
-                  {activeBot.analytics.totalMessages}
+                  {activeBot?.analytics?.totalMessages || 0}
                 </div>
                 <p className="text-sm text-green-600 dark:text-green-400">Total</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 text-2xl font-bold gradient-text mb-1">
                   <Settings className="w-5 h-5" />
-                  {activeBot.analytics.responseRate}%
+                  {activeBot?.analytics?.responseRate || 0}%
                 </div>
                 <p className="text-sm text-green-600 dark:text-green-400">Success</p>
               </div>

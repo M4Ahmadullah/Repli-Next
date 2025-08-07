@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { Header } from './header'
 import { Footer } from './footer'
+import { AuthLoadingWrapper } from './auth-loading-wrapper'
 
 interface ConditionalLayoutProps {
   children: React.ReactNode
@@ -14,6 +15,9 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Check if we're on an auth page
   const isAuthPage = pathname?.startsWith('/sign-in') || pathname?.startsWith('/sign-up')
   
+  // Check if we're on a dashboard page
+  const isDashboardPage = pathname?.startsWith('/dashboard')
+  
   if (isAuthPage) {
     // Auth pages: header with just logo and theme toggle, no footer
     return (
@@ -23,6 +27,15 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
           {children}
         </main>
       </div>
+    )
+  }
+  
+  if (isDashboardPage) {
+    // Dashboard pages: wrap with auth loading wrapper and no header/footer
+    return (
+      <AuthLoadingWrapper>
+        {children}
+      </AuthLoadingWrapper>
     )
   }
   

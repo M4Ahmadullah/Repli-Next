@@ -1,197 +1,178 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { UserService } from '@/lib/services/user.service'
-import { z } from 'zod'
+import { adminDb } from '@/lib/firebase/admin'
+import { FieldValue } from 'firebase-admin/firestore'
 
-const updateUserSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
-  image: z.string().url('Invalid image URL').optional(),
-  settings: z.object({
-    whatsappConnected: z.boolean().optional(),
-    whatsappPhoneNumber: z.string().optional(),
-    whatsappBusinessAccountId: z.string().optional(),
-    whatsappPhoneNumberId: z.string().optional(),
-    aiProvider: z.enum(['openai', 'anthropic', 'ollama']).optional(),
-    aiModel: z.string().optional(),
-    botPersonality: z.enum(['professional', 'friendly', 'casual']).optional(),
-    customInstructions: z.string().optional(),
-    autoRespond: z.boolean().optional(),
-    businessName: z.string().optional(),
-    businessDescription: z.string().optional(),
-    businessHours: z.object({
-      enabled: z.boolean(),
-      timezone: z.string(),
-      schedule: z.record(z.object({
-        start: z.string(),
-        end: z.string(),
-        enabled: z.boolean(),
-      })),
-    }).optional(),
-  }).optional(),
-})
-
+// GET: Fetch user profile
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: currentUserId } = await auth()
-    const { userId } = await params
-    
-    if (!currentUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const { userId } = await auth()
+    const resolvedParams = await context.params
+
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'Unauthorized' 
+      }, { status: 401 })
     }
 
-    // Users can only access their own data
-    if (currentUserId !== userId) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+    if (resolvedParams.userId !== userId) {
+      return NextResponse.json({ 
+        error: 'Access denied' 
+      }, { status: 403 })
     }
 
-    const userService = UserService.getInstance()
-    const user = await userService.getUserById(userId)
+    // Get user document from Firestore
+    const userDoc = await adminDb
+      .collection('users')
+      .doc(userId)
+      .get()
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    if (!userDoc.exists) {
+      return NextResponse.json({ 
+        error: 'User not found' 
+      }, { status: 404 })
     }
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        image: user.image,
-        subscription: user.subscription,
-        bots: user.bots,
-        activeBotId: user.activeBotId,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+    const userData = userDoc.data()
+
+    // Remove sensitive fields
+    const { 
+      firebaseUid, 
+      customClaims, 
+      ...safeUserData 
+    } = userData || {}
+
+    return NextResponse.json(safeUserData, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0'
+      }
     })
-
   } catch (error) {
-    console.error('Get user error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('User fetch error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to fetch user data',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 
+// PUT: Update user profile
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: currentUserId } = await auth()
-    const { userId } = await params
-    
-    if (!currentUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const { userId } = await auth()
+    const resolvedParams = await context.params
+
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'Unauthorized' 
+      }, { status: 401 })
     }
 
-    // Users can only update their own data
-    if (currentUserId !== userId) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+    if (resolvedParams.userId !== userId) {
+      return NextResponse.json({ 
+        error: 'Access denied' 
+      }, { status: 403 })
     }
 
-    const body = await request.json()
-    const updateData = updateUserSchema.parse(body)
+    const updateData = await request.json()
 
-    const userService = UserService.getInstance()
-    const updatedUser = await userService.updateUser(userId, updateData)
-
-    if (!updatedUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    // Validate update data
+    if (!updateData || typeof updateData !== 'object') {
+      return NextResponse.json({ 
+        error: 'Invalid update data' 
+      }, { status: 400 })
     }
 
-    // User updated successfully
+    // Remove sensitive fields that shouldn't be updated via API
+    const { 
+      firebaseUid, 
+      customClaims, 
+      createdAt,
+      ...safeUpdateData 
+    } = updateData
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name: updatedUser.name,
-        image: updatedUser.image,
-        subscription: updatedUser.subscription,
-        bots: updatedUser.bots,
-        activeBotId: updatedUser.activeBotId,
-        updatedAt: updatedUser.updatedAt,
-      },
+    // Add timestamp
+    const updatePayload = {
+      ...safeUpdateData,
+      updatedAt: FieldValue.serverTimestamp()
+    }
+
+    // Update user document in Firestore
+    await adminDb
+      .collection('users')
+      .doc(userId)
+      .update(updatePayload)
+
+    return NextResponse.json({ 
+      message: 'User profile updated successfully',
+      updatedAt: new Date().toISOString()
+    }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0'
+      }
     })
-
   } catch (error) {
-    console.error('Update user error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('User update error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to update user profile',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 
+// DELETE: Delete user account
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: currentUserId } = await auth()
-    const { userId } = await params
-    
-    if (!currentUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const { userId } = await auth()
+    const resolvedParams = await context.params
+
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'Unauthorized' 
+      }, { status: 401 })
     }
 
-    // Users can only delete their own account
-    if (currentUserId !== userId) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+    if (resolvedParams.userId !== userId) {
+      return NextResponse.json({ 
+        error: 'Access denied' 
+      }, { status: 403 })
     }
 
-    const userService = UserService.getInstance()
-    await userService.deleteUser(userId)
+    // Delete user document from Firestore
+    await adminDb
+      .collection('users')
+      .doc(userId)
+      .delete()
 
-    return NextResponse.json({
-      success: true,
-      message: 'User deleted successfully',
+    // Note: In a production app, you might want to:
+    // 1. Delete the user from Firebase Auth
+    // 2. Clean up related data (bots, conversations, etc.)
+    // 3. Handle subscription cancellation
+
+    return NextResponse.json({ 
+      message: 'User account deleted successfully' 
+    }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0'
+      }
     })
-
   } catch (error) {
-    console.error('Delete user error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('User deletion error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to delete user account',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 } 

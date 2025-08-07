@@ -52,13 +52,25 @@ export async function GET() {
     for (const bot of userBots) {
       try {
         // Get bot analytics from bot system
+        let botAnalytics = bot.analytics || {
+          totalMessages: 0,
+          todayMessages: 0,
+          weeklyMessages: 0,
+          monthlyMessages: 0,
+          responseRate: 0,
+          averageResponseTime: 0,
+          topQuestions: [],
+          satisfactionScore: 0,
+          lastUpdated: new Date()
+        }
+
+        try {
         const analyticsResponse = await fetch(`${BOT_SYSTEM_URL}/api/analytics/${bot.id}`, {
           headers: {
             'Authorization': `Bearer ${process.env.BOT_SYSTEM_API_KEY}`,
           }
         })
 
-        let botAnalytics = bot.analytics
         if (analyticsResponse.ok) {
           const analyticsData = await analyticsResponse.json()
           botAnalytics = {
@@ -72,21 +84,29 @@ export async function GET() {
             satisfactionScore: analyticsData.satisfactionScore || 0,
             lastUpdated: new Date(analyticsData.lastUpdated || Date.now())
           }
+          }
+        } catch (error) {
+          // Use default analytics if bot system is not available
         }
 
         // Get bot status
+        let botStatus = bot.status
+        let botHealth = 'unknown'
+        
+        try {
         const statusResponse = await fetch(`${BOT_SYSTEM_URL}/api/bots/${bot.id}/status`, {
           headers: {
             'Authorization': `Bearer ${process.env.BOT_SYSTEM_API_KEY}`,
           }
         })
 
-        let botStatus = bot.status
-        let botHealth = 'unknown'
         if (statusResponse.ok) {
           const statusData = await statusResponse.json()
           botStatus = statusData.status || bot.status
           botHealth = statusData.health || 'unknown'
+          }
+        } catch (error) {
+          // Use default status if bot system is not available
         }
 
         // Aggregate stats

@@ -9,6 +9,8 @@ export interface User {
   subscription: UserSubscription
   bots: Bot[] // Array of bots owned by this user
   activeBotId?: string // Currently selected bot ID
+  whatsappPhoneNumber?: string // Add WhatsApp phone number
+  settings?: UserSettings // Add optional settings
 }
 
 export interface Bot {
@@ -19,7 +21,7 @@ export interface Bot {
   whatsappPhoneNumber?: string
   whatsappConnected: boolean
   qrCode?: string // For connection process
-  status: 'creating' | 'training' | 'active' | 'inactive' | 'error'
+  status: 'creating' | 'training' | 'active' | 'inactive' | 'error' | 'connecting'
   settings: BotSettings
   trainingData: BotTrainingData
   analytics: BotAnalytics

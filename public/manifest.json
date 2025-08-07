@@ -1,0 +1,16 @@
+{
+  "name": "Repli - AI-Powered WhatsApp Automation",
+  "short_name": "Repli",
+  "description": "Transform your WhatsApp into an intelligent AI assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+} 

@@ -66,14 +66,14 @@ export async function POST(req: NextRequest) {
     const svix_signature = req.headers.get('svix-signature')
 
     // Validate headers
-    if (!svix_id || !svix_timestamp || !svix_signature) {
+  if (!svix_id || !svix_timestamp || !svix_signature) {
       logWebhookEvent('warn', 'Missing Svix headers', { 
         svix_id, 
         svix_timestamp, 
         svix_signature 
       })
       return NextResponse.json({ error: 'Missing Svix headers' }, { status: 400 })
-    }
+  }
 
     // Read request body
     const payload = await req.json()
@@ -83,21 +83,21 @@ export async function POST(req: NextRequest) {
 
     // Verify the webhook
     let verifiedPayload
-    try {
+  try {
       verifiedPayload = wh.verify(
         JSON.stringify(payload), 
         {
-          'svix-id': svix_id,
-          'svix-timestamp': svix_timestamp,
+      'svix-id': svix_id,
+      'svix-timestamp': svix_timestamp,
           'svix-signature': svix_signature
         }
       )
-    } catch (err) {
+  } catch (err) {
       logWebhookEvent('error', 'Webhook verification failed', { 
         error: err instanceof Error ? err.message : 'Unknown error' 
       })
       return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 403 })
-    }
+  }
 
     // Validate payload structure
     let validatedPayload
@@ -112,13 +112,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Get UserService instance
-    const userService = UserService.getInstance()
+  const userService = UserService.getInstance()
 
     // Process different event types with enhanced logging
     switch (validatedPayload.type) {
       case 'user.created':
         try {
-          await userService.createUser({
+        await userService.createUser({
             clerkId: validatedPayload.data.id,
             email: validatedPayload.data.email_addresses[0].email_address,
             name: `${validatedPayload.data.first_name || ''} ${validatedPayload.data.last_name || ''}`.trim(),

@@ -1,8 +1,9 @@
 'use client'
 
-import { ClerkProviderWrapper } from './providers/clerk-provider'
+import { ClerkCustomProvider } from './providers/clerk-provider'
 import { ThemeProvider } from './providers/theme-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
 import { useState } from 'react'
 
 interface ProvidersProps {
@@ -21,11 +22,24 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <ClerkProviderWrapper>
+      <ClerkCustomProvider>
         <QueryClientProvider client={queryClient}>
-      {children}
+          {children}
         </QueryClientProvider>
-      </ClerkProviderWrapper>
+      </ClerkCustomProvider>
+      <Toaster 
+        position="top-right"
+        richColors
+        closeButton
+        duration={4000}
+        toastOptions={{
+          style: {
+            background: '#10b981',
+            color: 'white',
+            border: '1px solid #059669',
+          },
+        }}
+      />
     </ThemeProvider>
   )
 } 

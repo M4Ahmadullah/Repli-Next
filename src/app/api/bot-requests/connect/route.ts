@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
         requestBody = {
           userId,
           requestId,
-          userPlan: user.subscription.plan
+          useExistingSession: false,
+          isNewBotCreation: true
         }
         break
 

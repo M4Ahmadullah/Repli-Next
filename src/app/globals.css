@@ -779,3 +779,65 @@
   display: none;
 }
 
+/* Custom scrollbar for training sections */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f0fdf4;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+/* Training section scrollbar */
+.training-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.training-scrollbar::-webkit-scrollbar-track {
+  background: #f0fdf4;
+  border-radius: 4px;
+}
+
+.training-scrollbar::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 4px;
+}
+
+.training-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+/* Force visible scrollbars for all overflow content */
+* {
+  scrollbar-width: auto !important;
+  scrollbar-color: #10b981 #f0fdf4 !important;
+}
+
+*::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f0fdf4 !important;
+  border-radius: 4px !important;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #10b981 !important;
+  border-radius: 4px !important;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #059669 !important;
+}
+
